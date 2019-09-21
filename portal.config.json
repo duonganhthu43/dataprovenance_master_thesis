@@ -1,0 +1,11 @@
+{
+  "txTimeout": 300000,
+  "skipInit": true,
+  "controllers": [
+    {
+      "name": "portal-cc",
+      "version": "file:./packages/portal-cc",
+      "controller": "PortalController"
+    }
+  ]
+}

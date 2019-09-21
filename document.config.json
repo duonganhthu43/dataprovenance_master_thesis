@@ -1,0 +1,36 @@
+{
+  "txTimeout": 300000,
+  "skipInit": true,
+  "controllers": [
+    {
+      "name": "document-cc",
+      "version": "file:./packages/document-cc",
+      "controller": "DocumentController"
+    },
+    {
+      "name": "document-cc",
+      "version": "file:./packages/document-cc",
+      "controller": "PortalController"
+    },
+    {
+      "name": "document-cc",
+      "version": "file:./packages/document-cc",
+      "controller": "UserController"
+    },
+    {
+      "name": "document-cc",
+      "version": "file:./packages/document-cc",
+      "controller": "ResourceController"
+    },
+    {
+      "name": "document-cc",
+      "version": "file:./packages/document-cc",
+      "controller": "DatasetController"
+    },
+    {
+      "name": "document-cc",
+      "version": "file:./packages/document-cc",
+      "controller": "OrganizationController"
+    }
+  ]
+}

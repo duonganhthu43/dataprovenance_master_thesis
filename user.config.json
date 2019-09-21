@@ -1,0 +1,11 @@
+{
+  "txTimeout": 300000,
+  "skipInit": true,
+  "controllers": [
+    {
+      "name": "user-cc",
+      "version": "file:./packages/user-cc",
+      "controller": "UserController"
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+import { ChaincodeTx } from '@worldsibu/convector-platform-fabric';
+import {
+    ConvectorController
+} from '@worldsibu/convector-core';
+import { BaseObjWithAtt } from '.';
+import { User } from '../user/user.model'
+
+export class BaseController extends ConvectorController<ChaincodeTx> {
+
+    public async validateCurrentSender() {
+        // make sure current sender is valid user 
+        let listUserBySender = await User.query(User, {
+            "selector": {
+                "type": new User().type,
+                "identities.0.fingerprint": this.sender,
+                "identities.0.status": true
+            }
+        }) as User[]
+        if (!listUserBySender || listUserBySender.length !== 1) {
+            throw new Error('There is no valid or active credential available with current sender')
+        }
+        return listUserBySender[0]
+    }
+
+    public checkingIfPortalUser(user: User) {
+        let userTypeAttribute = user.attributes.find(att => att.name === 'user_type');
+        let userType = userTypeAttribute ? userTypeAttribute.value : undefined
+        return (!userTypeAttribute.expired) && userType === 'portal_user'
+    }
+
+    public checkingIfCasualUser(user: User) {
+        let userTypeAttribute = user.attributes.find(att => att.name === 'user_type');
+        let userType = userTypeAttribute ? userTypeAttribute.value : undefined
+        return (!userTypeAttribute.expired) &&  userType === 'casual_user'
+    }
+
+}
