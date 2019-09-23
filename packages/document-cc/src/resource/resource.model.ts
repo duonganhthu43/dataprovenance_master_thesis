@@ -60,6 +60,6 @@ export class Resource extends BaseObjWithAtt<Resource> {
   @Validate(yup.string())
   public source: string;
 
-  @Validate(yup.object())
-  public resourceInfo: any;
+  // @Validate(yup.object())
+  // public resourceInfo: any;
 }

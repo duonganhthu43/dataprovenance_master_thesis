@@ -21,10 +21,8 @@ export class DatasetController extends BaseController {
     let listDataset = await Dataset.query(Dataset, {
       "selector": {
         type: new Dataset().type,
-        "datasetInfo": {
-          "id": datasetInfo['id'],
-          'source': datasetInfo['source']
-        }
+        "id": datasetInfo['id'],
+        'source': datasetInfo['source']
       }
     }) as Dataset[]
     if (listDataset.length > 0) {
@@ -35,7 +33,6 @@ export class DatasetController extends BaseController {
     newDataset.createAuditField(this.sender)
     newDataset = this.mappingValue(datasetInfo, newDataset)
     newDataset.id = datasetInfo.id ? datasetInfo.id : this.tx.stub.generateUUID(JSON.stringify(datasetInfo))
-    newDataset.createAuditField(this.sender)
     await this.createProvenanceInfo(newDataset, currentSender, datasetInfo)
     await newDataset.save();
     return <Dataset>newDataset.toJSON()
@@ -197,6 +194,7 @@ export class DatasetController extends BaseController {
     return await currentDataProvenance.save()
 
   }
+
   @Invokable()
   public async update(
     @Param(yup.object())
@@ -207,88 +205,49 @@ export class DatasetController extends BaseController {
     let listDataset = await Dataset.query(Dataset, {
       "selector": {
         type: new Dataset().type,
-        "datasetInfo": {
-          "id": datasetInfo['id'],
-          'source': datasetInfo['source']
-        }
+        "id": datasetInfo['id'],
+        'source': datasetInfo['source']
       }
     }) as Dataset[]
     if (listDataset.length !== 1) {
       throw new Error('Theres no dataset related to id' + datasetInfo['id'] + 'from ' + datasetInfo['source'])
     }
-    let cloneNewDatasetInfo = { ...datasetInfo }
-    delete cloneNewDatasetInfo['user']
-
     let dataset = listDataset[0]
-    let oldValue = { ...dataset.datasetInfo }
+    let oldValue = { ...dataset.toJSON() }
     dataset = this.mappingValue(datasetInfo, dataset)
-    let newValue = { ...dataset.datasetInfo }
+    let newValue = { ...dataset.toJSON() }
     let diff = Utilities.findDiff(oldValue, newValue, { resources: 'id' })
-    await this.updateProvenanceInfo(dataset,currentSender,newValue,diff)
+    if(!diff || diff.length < 1) { return <Dataset>dataset.toJSON()}
+    await this.updateProvenanceInfo(dataset, currentSender, newValue, diff)
     await dataset.save();
     return <Dataset>dataset.toJSON()
   }
 
   mappingValue(source: object, destination: Dataset) {
-    let newDataset = destination
+    let newDataset = destination.clone()
     newDataset.title = source['title']
     newDataset.name = source['name']
-    newDataset.datasetInfo = source
-    if (source['maintainer']) {
-      newDataset.maintainer = source['maintainer']
-    }
-    if (source['author_email']) {
-      newDataset.author_email = source['author_email']
-    }
-    if (source['url']) {
-      newDataset.url = source['url']
-    }
-    if (source['state']) {
-      newDataset.state = source['state']
-    }
-    if (source['version']) {
-      newDataset.version = source['version']
-    }
-    if (source['notes']) {
-      newDataset.notes = source['notes']
-    }
-    if (source['maintainer_email']) {
-      newDataset.maintainer_email = source['maintainer_email']
-    }
-    if (source['license_id']) {
-      newDataset.license_id = source['license_id']
-    }
-    if (source['creator_user_id']) {
-      newDataset.creator_user_id = source['creator_user_id']
-    }
-    if (source['tags']) {
-      newDataset.tags = source['tags']
-    }
-    if (source['tag_string']) {
-      newDataset.tag_string = source['tag_string']
-    }
-    if (source['source']) {
-      newDataset.source = source['source']
-    }
-    // manually remove user info
-    let cloneSource = { ...source }
-    delete cloneSource["user"]
-    delete cloneSource["topic"]
-    // handle resource manual, remove unnecessary data
-    let resourceInfo = cloneSource['resources']
-    if (resourceInfo && resourceInfo.length > 0) {
-      for (var idx = 0; idx < resourceInfo.length; idx++) {
-        let rawResourceValue = { ...resourceInfo[idx] }
-        let tempValue = {}
-        let keyArrays = ['description', 'format', 'id', 'mimetype', 'name', 'url', 'url_type']
-        keyArrays.forEach(keyValue => {
-          tempValue[keyValue] = rawResourceValue[keyValue]
-        })
-        resourceInfo[idx] = tempValue
+    let keysArr = ['maintainer', 'author_email', 'url', 'state', 'version', 'notes', 'maintainer_email', 'license_id', 'creator_user_id', 'tags', 'tag_string', 'source']
+    keysArr.forEach(key => {
+      if (source[key]) {
+        newDataset[key] = source[key]
       }
-      cloneSource['resources'] = resourceInfo
+    })
+    let resourcesList = source['resources']
+    let convertedList = []
+    if(resourcesList && Array.isArray(resourcesList) && resourcesList.length > 0) {
+      let keyArrays = ['description', 'format', 'id', 'mimetype', 'name', 'url', 'url_type']
+      resourcesList.forEach( rs => {
+        let tempObj = {}
+        keyArrays.forEach( key => {
+          tempObj[key] = rs[key]
+        })
+        convertedList = convertedList.concat(tempObj)
+      })
+      newDataset.resources = convertedList
+    } else {
+      newDataset.resources = []
     }
-    newDataset.datasetInfo = cloneSource
     return newDataset
   }
 }

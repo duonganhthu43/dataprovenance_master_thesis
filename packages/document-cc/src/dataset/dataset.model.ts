@@ -56,7 +56,10 @@ export class Dataset extends BaseObjWithAtt<Dataset> {
 
   @Validate(yup.string())
   public source: string;
+  
+  @Validate(yup.array(yup.object()))
+  public resources: object[]
 
-  @Validate(yup.object())
-  public datasetInfo: any;
+  // @Validate(yup.object())
+  // public datasetInfo: any;
 }
