@@ -7,7 +7,7 @@ import {
   Validate,
   FlatConvectorModel
 } from '@worldsibu/convector-core-model';
-import { BaseObjWithAttAndIdenties } from '../common'
+import { BaseObjWithAttAndIdenties, x509Identities } from '../common'
 export class User extends BaseObjWithAttAndIdenties<User> {
   @ReadOnly()
   @Required()

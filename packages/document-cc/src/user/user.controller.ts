@@ -8,50 +8,92 @@ import { User } from './user.model';
 import { Attribute, BaseController } from '../common'
 import * as yup from 'yup';
 @Controller('user')
-export class UserController extends BaseController {
-  @Invokable()
-  public async create(
-    @Param(yup.object())
-    user: any
-  ) {
-    
-    // checking if is portal user
-    let senderUser = await this.validateCurrentSender()
-    let isPortalUser = await this.checkingIfPortalUser(senderUser)
+export class UserController extends BaseController<User> {
+  async onCreate(modelInfo: any, sender: User): Promise<User> {
+    let isPortalUser = await this.checkingIfPortalUser(sender)
     if(!isPortalUser) {
       throw new Error('Current sender must be portal_user to allow created new user')
     }
     let listUser = await User.query(User, {
       "selector": {
         "userData": {
-          "id": user['id'],
-          'source': user['source']
+          "id": modelInfo['id'],
+          'source': modelInfo['source']
         }
       }
     })
     if (Array.isArray(listUser)) {
       listUser = <User[]>listUser
       if (listUser.length > 0) {
-        throw new Error('There already existed user with id' + user['id'] + 'from ' + user['source']
+        throw new Error('There already existed user with id' + modelInfo['id'] + 'from ' + modelInfo['source']
         )
       }
     }
     let requiredField = ['name', 'email']
     requiredField.forEach(value => {
-      if (!user[value]) {
+      if (!modelInfo[value]) {
         throw new Error(`user data must have ${value} value `)
       }
     })
 
     let newUser = new User()
     newUser.createAuditField(this.sender)
-    newUser.name = user['name']
-    newUser.email = user['email']
-    newUser.userData = user
-    newUser.id = user['id'] ? user['id'] : this.tx.stub.generateUUID(JSON.stringify(user))
+    newUser.name = modelInfo['name']
+    newUser.email = modelInfo['email']
+    newUser.userData = modelInfo
+    newUser.id = modelInfo['id'] ? modelInfo['id'] : this.tx.stub.generateUUID(JSON.stringify(modelInfo))
     newUser.addAttribute('user_type', 'casual_user', this.sender)
     await newUser.save();
-    return <User>newUser.toJSON()
+    return newUser
+  }
+  onCreateProv(currentSender: User, data: User) {
+    //throw new Error("Method not implemented.");
+  }
+  @Invokable()
+  public async create(
+    @Param(yup.object())
+    user: any
+  ) {
+
+    return await super.create(user)
+    
+    // // checking if is portal user
+    // let senderUser = await this.validateCurrentSender()
+    // let isPortalUser = await this.checkingIfPortalUser(senderUser)
+    // if(!isPortalUser) {
+    //   throw new Error('Current sender must be portal_user to allow created new user')
+    // }
+    // let listUser = await User.query(User, {
+    //   "selector": {
+    //     "userData": {
+    //       "id": user['id'],
+    //       'source': user['source']
+    //     }
+    //   }
+    // })
+    // if (Array.isArray(listUser)) {
+    //   listUser = <User[]>listUser
+    //   if (listUser.length > 0) {
+    //     throw new Error('There already existed user with id' + user['id'] + 'from ' + user['source']
+    //     )
+    //   }
+    // }
+    // let requiredField = ['name', 'email']
+    // requiredField.forEach(value => {
+    //   if (!user[value]) {
+    //     throw new Error(`user data must have ${value} value `)
+    //   }
+    // })
+
+    // let newUser = new User()
+    // newUser.createAuditField(this.sender)
+    // newUser.name = user['name']
+    // newUser.email = user['email']
+    // newUser.userData = user
+    // newUser.id = user['id'] ? user['id'] : this.tx.stub.generateUUID(JSON.stringify(user))
+    // newUser.addAttribute('user_type', 'casual_user', this.sender)
+    // await newUser.save();
+    // return <User>newUser.toJSON()
   }
 
 
@@ -63,20 +105,8 @@ export class UserController extends BaseController {
     let userId = userUpdateDTO.userId
     let fingerprint = userUpdateDTO.fingerprint
     // make sure current sender is valid user 
-    let listUserBySender = <User[]>await User.query(User, {
-      "selector": {
-        "type": new User().type,
-        "identities.0.fingerprint": this.sender,
-        "identities.0.status": true
-      }
-    })
-    console.log('==== make sure current sender is valid user ', JSON.stringify(listUserBySender))
-
-    if (!listUserBySender || listUserBySender.length !== 1) {
-      throw new Error('There is no valid credential available with current sender')
-    }
+    let senderUser = await this.validateCurrentSender()
     // checking if is portal user
-    let senderUser = listUserBySender[0]
     let userTypeAttribute = senderUser.attributes.find(att => att.name === 'user_type');
     let userType = userTypeAttribute ? userTypeAttribute.value : undefined
     //portal_user
@@ -99,7 +129,7 @@ export class UserController extends BaseController {
       throw new Error('Sender is not valid to update identites, must be portal_user or current active identity of user')
     }
     userById.updateIdentities(fingerprint, this.sender)
-    await userById.save
+    await userById.save()
     return <User>userById.toJSON()
   }
 
@@ -186,8 +216,34 @@ export class UserController extends BaseController {
     updatedUser.userData = user
     updatedUser.updateAuditField(this.sender)
     await updatedUser.save();
-    console.log('==== updated user ', JSON.stringify(updatedUser))
     return <User>updatedUser.toJSON()
+  }
+
+  @Invokable()
+  public async me() {
+    let senderUser = await this.validateCurrentSender()
+    return <User>senderUser.toJSON()
+  }
+
+  @Invokable()
+  public async getbyfingerprint(@Param(yup.object())
+  userData: any
+  ) {
+    let senderUser = await this.validateCurrentSender()
+    console.log('====== userData ', userData)
+    let fingerprint = userData.fingerprint
+    let listUseryFingerPrint = await User.query(User, {
+      "selector": {
+          "type": new User().type,
+          "identities": {
+            "$elemMatch": {
+              "fingerprint" : userData.fingerprint
+            }
+          }
+      }
+  }) as User[]
+  console.log('==== listUseryFingerPrint ', listUseryFingerPrint)
+  return <User[]>listUseryFingerPrint.map(value => value.toJSON())
   }
 
 
@@ -202,7 +258,6 @@ export class UserController extends BaseController {
     let lstUserByCriteria = <User[]>await User.query(User, {
       "selector": {
         "type": new User().type,
-        "id": userCriteria.userId,
         "userData.apikey": userCriteria.apikey,
         "userData.email": userCriteria.email
       }

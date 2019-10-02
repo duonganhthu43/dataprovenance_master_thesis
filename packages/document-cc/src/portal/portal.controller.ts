@@ -9,11 +9,18 @@ import { Portal } from './portal.model';
 import { ClientIdentity } from 'fabric-shim';
 import { PortalCreateDTO } from './portal.dto';
 import { User } from '../user'
-import { Attribute, BaseController } from '../common'
+import { Attribute, BaseController, x509Identities } from '../common'
 import * as crypto from 'crypto';
 
 @Controller('portal')
-export class PortalController extends BaseController {
+export class PortalController extends BaseController<Portal> {
+  onCreate(modelInfo: any, sender: User): Promise<Portal> {
+    return null
+    //throw new Error("Method not implemented.");
+  }
+  onCreateProv(currentSender: User, data: Portal) {
+    //throw new Error("Method not implemented.");
+  }
   get fullIdentity(): ClientIdentity {
     const stub = (BaseStorage.current as any).stubHelper;
     return new ClientIdentity(stub.getStub());
@@ -56,7 +63,7 @@ export class PortalController extends BaseController {
     newPortal.id = this.portalID
     newPortal.name = portal.name
     newPortal.MSP = this.fullIdentity.getMSPID();
-    newPortal.identities = portal.identities
+    newPortal.identities = portal.identities && portal.identities.map( value => new x509Identities(value.status, value.fingerprint))
     if (portal.attributes && portal.attributes.length > 0) {
       newPortal.attributes = portal.attributes.map(att => new Attribute(att.name, att.value, this.sender))
     }
@@ -74,7 +81,7 @@ export class PortalController extends BaseController {
       portalId: this.portalID
     }
     portalUser.id = this.tx.stub.generateUUID(`${portalUser.name}-${portalUser.modified}`)
-    portalUser.identities = portal.identities
+    portalUser.identities = portal.identities && portal.identities.map( value => new x509Identities(value.status, value.fingerprint))
     let userTypeAtt = new Attribute('user_type', 'portal_user',this.sender)
     portalUser.attributes = [userTypeAtt]
     await portalUser.save();

@@ -12,6 +12,9 @@ export abstract class BaseModel<T extends BaseModel<any>> extends ConvectorModel
   public modifiedBy: string
 
   @Validate(yup.string())
+  public name: string
+
+  @Validate(yup.string())
   public createdBy: string
 
   @ReadOnly()

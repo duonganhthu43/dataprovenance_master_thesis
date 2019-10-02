@@ -7,146 +7,188 @@ import {
   Validate
 } from '@worldsibu/convector-core-model';
 import { BaseModel } from '../common/baseModel.model';
-export abstract class BaseComponent<T extends BaseComponent<any>> extends  ConvectorModel<T> {
+var hash = require('object-hash');
+
+export abstract class BaseComponent<T extends BaseComponent<any>> extends ConvectorModel<T> {
   @Required()
   @Validate(yup.string())
   public name: string
 
   @ReadOnly()
   @Required()
-  public type = 'io.worldsibu.dataProvenance.component';
-
-  public info: any
+  abstract type: string;
 
   @Validate(yup.string())
   public id: string
 
   @Validate(yup.string())
   public associated_type: string
+
+  private _info: any;
+
+  get hashInfo(): string {
+    return this.info && hash.MD5(this._info)
+  }
+  get info(): any {
+    return this._info;
+  }
+  set info(value: any) {
+    this._info = value;
+  }
 }
 
 export class Entity extends BaseComponent<Entity> {
+
   @ReadOnly()
   @Required()
-  public readonly type = 'io.worldsibu.dataProvenance.component.entity';
+  public readonly type = 'entity';
 }
 
 export class Agent extends BaseComponent<Agent> {
   @ReadOnly()
   @Required()
-  public readonly type = 'io.worldsibu.dataProvenance.component.agent';
+  public readonly type = 'agent';
 }
 
-export class Activity extends BaseComponent<Agent> {
+export class Activity extends BaseComponent<Activity> {
   @ReadOnly()
   @Required()
-  public readonly type = 'io.worldsibu.dataProvenance.component.activity';
+  public readonly type = 'activity';
 }
 
 export abstract class ProvenanceInfo extends BaseModel<ProvenanceInfo> {
-  
+
+  @Validate(yup.object())
+  public description: any
+
+  @Required()
   @Validate(yup.string())
-  public description: string
+  abstract shortName: string
+
 }
 
 export class WasAssociatedWith extends ProvenanceInfo {
+  @Required()
+  @ReadOnly()
+  public shortName = 'wAW';
   @ReadOnly()
   @Required()
-  public readonly type = 'io.worldsibu.dataProvenance.provenanceinfo.wasassociatedwith';
+  public readonly type = 'wasAssociatedWith';
   @Required()
-  @Validate(Activity.schema())
-  public activity: Activity
+  @Validate(yup.string())
+  public activity: string
   @Required()
-  @Validate(Agent.schema())
-  public agent: Agent
+  @Validate(yup.string())
+  public agent: string
+  @Required()
+  @Validate(yup.string())
+  public role: string
 }
 
 export class WasDerivedFrom extends ProvenanceInfo {
+  @Required()
+  @ReadOnly()
+  public shortName = 'wDF';
   @ReadOnly()
   @Required()
-  public readonly type = 'io.worldsibu.dataProvenance.provenanceinfo.wasderivedfrom';
+  public readonly type = 'wasDerivedFrom';
   @Required()
-  @Validate(Entity.schema())
-  public source: Entity
+  @Validate(yup.string())
+  public usedEntity: string
 
   @Required()
-  @Validate(Entity.schema())
-  public destination: Entity
+  @Validate(yup.string())
+  public generatedEntity: string
 }
 
 export class WasGeneratedBy extends ProvenanceInfo {
+  @Required()
+  @ReadOnly()
+  public shortName = 'wGB';
   @ReadOnly()
   @Required()
-  public readonly type = 'io.worldsibu.dataProvenance.provenanceinfo.wasgeneratedby';
+  public readonly type = 'wasGeneratedBy';
   @Required()
-  @Validate(Entity.schema())
-  public entity: Entity
-  
+  @Validate(yup.string())
+  public entity: string
+
   @Required()
-  @Validate(Activity.schema())
-  public activity: Activity
+  @Validate(yup.string())
+  public activity: string
 }
 
 export class Used extends ProvenanceInfo {
+  @Required()
+  @ReadOnly()
+  public shortName = 'u';
   @ReadOnly()
   @Required()
-  public readonly type = 'io.worldsibu.dataProvenance.provenanceinfo.used';
+  public readonly type = 'used';
   @Required()
-  @Validate(Activity.schema())
-  public activity: Activity
-  
+  @Validate(yup.string())
+  public activity: string
+
   @Required()
-  @Validate(Entity.schema())
-  public entity: Entity
+  @Validate((yup.string()))
+  public entity: string
 }
 
 export class WasInformedBy extends ProvenanceInfo {
+  @Required()
+  @ReadOnly()
+  public shortName = 'Infm';
   @ReadOnly()
   @Required()
-  public readonly type = 'io.worldsibu.dataProvenance.provenanceinfo.wasinformedby';
+  public readonly type = 'wasInformedBy';
   @Required()
-  @Validate(Activity.schema())
-  public activity1: Activity
-  
+  @Validate(yup.string())
+  public informant: string
+
   @Required()
-  @Validate(Activity.schema())
-  public activity2: Activity
+  @Validate(yup.string())
+  public informed: string
 }
 
 export class WasAttributedTo extends ProvenanceInfo {
+  @Required()
+  @ReadOnly()
+  public shortName = 'wAT';
   @ReadOnly()
   @Required()
-  public readonly type = 'io.worldsibu.dataProvenance.provenanceinfo.wasattributedto';
+  public readonly type = 'wasAttributedTo';
   @Required()
-  @Validate(Entity.schema())
-  public entity: Entity
-  
+  @Validate(yup.string())
+  public entity: string
+
   @Required()
-  @Validate(Agent.schema())
-  public agent: Agent
+  @Validate(yup.string())
+  public agent: string
 }
 
-export class ActedOnBehalfOf extends ProvenanceInfo{
+export class ActedOnBehalfOf extends ProvenanceInfo {
+  @Required()
+  @ReadOnly()
+  public shortName = 'aOBO';
   @ReadOnly()
   @Required()
-  public readonly type = 'io.worldsibu.dataProvenance.provenanceinfo.actedonbehalfof';
+  public readonly type = 'actedOnBehalfOf';
   @Required()
-  @Validate(Agent.schema())
-  public agent1: Agent
-  
+  @Validate(yup.string())
+  public delegate: string
+
   @Required()
-  @Validate(Agent.schema())
-  public agent2: Agent
+  @Validate(yup.string())
+  public responsible: string
 }
 
 export class Chapter extends BaseModel<Chapter> {
   @ReadOnly()
   @Required()
-  public readonly type = 'io.worldsibu.dataProvenance.chapter';
+  public readonly type = 'chapter';
 
   @Validate(yup.array(Agent.schema()))
   public agents: Array<Agent>;
-  
+
   @Validate(yup.array(Entity.schema()))
   public entities: Array<Entity>;
 
@@ -157,20 +199,21 @@ export class Chapter extends BaseModel<Chapter> {
   public provenanceInfo: Array<ProvenanceInfo>;
 }
 
-
 export class DataProvenance extends BaseModel<DataProvenance> {
   @ReadOnly()
   @Required()
-  public readonly type = 'io.worldsibu.dataProvenance.wrapper';
-  
-  @Required()
-  @Validate(yup.string())
-  public associated_with_obj_id:string 
+  public readonly type = 'wrapper';
 
   @Required()
   @Validate(yup.string())
-  public object_type:string 
+  public associated_with_obj_id: string
+
+  @Required()
+  @Validate(yup.string())
+  public object_type: string
 
   @Validate(yup.array(Chapter.schema()))
   public story: Array<Chapter>
 }
+
+
