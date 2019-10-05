@@ -11,7 +11,7 @@ import { BaseObjWithAtt } from '../common'
 export class Resource extends BaseObjWithAtt<Resource> {
   @ReadOnly()
   @Required()
-  public readonly type = 'io.worldsibu.resource';
+  public readonly type = 'resource';
 
   @Required()
   @Validate(yup.string())

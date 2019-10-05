@@ -14,8 +14,8 @@ import { Utilities } from '../common/utilities';
 
 @Controller('resource')
 export class ResourceController extends BaseController<Resource> {
-  onCreateProv(currentSender: User, dataset: Resource, dataInfo: any) {
-    
+  async onCreateProv(currentSender: User, dataset: Resource, dataInfo: any) {
+    return await this.createProvenanceInfo(dataset,currentSender,dataInfo)
   }
   
   async onCreate(modelInfo: any, sender: User): Promise<Resource> {
@@ -67,7 +67,8 @@ export class ResourceController extends BaseController<Resource> {
     let newValue = { ...resource.toJSON() }
     let diff = Utilities.findDiff(oldValue, newValue, {})
     if (!diff || diff.length < 1) { return <Resource>resource.toJSON() }
-    // await this.updateProvenanceInfo(resource, currentSender, newValue, diff)
+    await this.updateProvenanceInfo(resource, currentSender, newValue, diff, oldValue)
+
     await resource.save();
     return <Resource>resource.toJSON()
   }
@@ -114,159 +115,4 @@ export class ResourceController extends BaseController<Resource> {
 
     return newDestination
   }
-
-// public createActivityWithName(name: string) {
-  //   let activitity = new Activity()
-  //   activitity.name = name
-  //   return activitity
-  // }
-
-  // public createAgentFromCurrentSender(currentSender: User) {
-  //   let currentSender_Agent = new Agent()
-  //   currentSender_Agent.id = currentSender.id
-  //   currentSender_Agent.associated_type = currentSender.type
-  //   currentSender_Agent.name = currentSender.name
-  //   currentSender_Agent.info = currentSender
-  //   return currentSender_Agent
-  // }
-  // public createRelatedEntity(resource: Resource, resourceInfo: any) {
-  //   let entity = new Entity()
-  //   entity.associated_type = resource.type
-  //   entity.info = resourceInfo
-  //   entity.name = resource.name
-  //   return entity
-  // }
-
-  // public async createAgentFromUserAssociated(userInfoAssociatied: any) {
-  //   if (!userInfoAssociatied || Object.keys(userInfoAssociatied).length < 1) { return undefined }
-  //   let associatedAgent = new Agent()
-  //   associatedAgent.info = userInfoAssociatied
-
-  //   let userByID = await Utilities.findUserById(userInfoAssociatied['id'])
-  //   if (userByID) {
-  //     associatedAgent.id = userByID.id
-  //     associatedAgent.associated_type = userByID.type
-  //   } else {
-  //     associatedAgent.id = userInfoAssociatied['id']
-  //     //associatedAgent.associated_type = `user_not_recored_in_system`
-  //   }
-  //   return associatedAgent
-  // }
-  // public async onCreateAgentsAndEntity(currentSender: User, userInfoAssociatied: any, currentResource: Resource, resourceInfo: any) {
-  //   let chapter = new Chapter
-  //   // create agent from current sender
-  //   let currentSender_Agent = this.createAgentFromCurrentSender(currentSender)
-  //   chapter.agents = [currentSender_Agent]
-  //   // checking if have associatied agent
-  //   let associatedAgent: Agent = await this.createAgentFromUserAssociated(userInfoAssociatied);
-  //   if (associatedAgent) {
-  //     chapter.agents = chapter.agents.concat(associatedAgent)
-  //   }
-  //   // create current related entity
-  //   let entity = this.createRelatedEntity(currentResource, resourceInfo)
-  //   chapter.entities = [entity]
-  //   return chapter
-  // }
-  // public async onCreateChapterComponent(currentSender: User, userInfoAssociatied: any, currentResource: Resource, resourceInfo: any) {
-  //   let chapter = await this.onCreateAgentsAndEntity(currentSender, userInfoAssociatied, currentResource, resourceInfo)
-  //   let activitity = this.createActivityWithName('create_new_resouce')
-  //   chapter.activities = [activitity]
-  //   return chapter
-  // }
-  // public async createProvenanceInfo(newResource: Resource, currentSender: User, dataSourceInfo: any) {
-  //   // create provenance for resource
-  //   let datasourceProvenance = new DataProvenance()
-  //   datasourceProvenance.associated_with_obj_id = newResource.id
-  //   datasourceProvenance.object_type = newResource.type
-  //   let userInfoAssociatied = { ...dataSourceInfo['user'] }
-  //   // manually remove user info
-  //   delete dataSourceInfo["user"]
-  //   let newChapter = await this.onCreateChapterComponent(currentSender, userInfoAssociatied, newResource, dataSourceInfo)
-
-  //   // create provenance info
-  //   let wasGeneratedBy_info = new WasGeneratedBy()
-  //   wasGeneratedBy_info.entity = newChapter.entities[0]
-  //   wasGeneratedBy_info.activity = newChapter.activities[0]
-  //   newChapter.provenanceInfo = [wasGeneratedBy_info]
-
-  //   let isHaveUserAssociated: boolean = newChapter.agents.length > 1
-  //   let wasAttributedTo_info = new WasAttributedTo()
-  //   wasAttributedTo_info.entity = newChapter.entities[0]
-  //   wasAttributedTo_info.agent = isHaveUserAssociated ? newChapter.agents[1] : newChapter.agents[0]
-  //   newChapter.provenanceInfo = newChapter.provenanceInfo.concat(wasAttributedTo_info)
-
-  //   if (isHaveUserAssociated) {
-  //     let wasAssociatedWith_info = new WasAssociatedWith()
-  //     wasAssociatedWith_info.agent = newChapter.agents[0]
-  //     wasAssociatedWith_info.activity = newChapter.activities[0]
-  //     newChapter.provenanceInfo = newChapter.provenanceInfo.concat(wasAssociatedWith_info)
-
-  //     let actedOnBehalfOf_info = new ActedOnBehalfOf()
-  //     actedOnBehalfOf_info.agent1 = newChapter.agents[0];
-  //     actedOnBehalfOf_info.agent2 = newChapter.agents[1]
-  //     newChapter.provenanceInfo = newChapter.provenanceInfo.concat(actedOnBehalfOf_info)
-  //   }
-
-  //   datasourceProvenance.story = [newChapter]
-  //   datasourceProvenance.id = this.tx.stub.generateUUID(`datasourceProvenance-${datasourceProvenance.associated_with_obj_id}-${datasourceProvenance.object_type}`)
-  //   return await datasourceProvenance.save()
-  // }
-
-  
-
-
-  // public async onUpdatedChapterComponent(currentSender: User, userInfoAssociatied: any, currentResource: Resource, resourceInfo: any, detailDifference: any) {
-  //   let chapter = await this.onCreateAgentsAndEntity(currentSender, userInfoAssociatied, currentResource, resourceInfo)
-  //   let activitity = this.createActivityWithName('update_resource')
-  //   activitity.info = detailDifference
-  //   chapter.activities = [activitity]
-  //   return chapter
-  // }
-  // public async updateProvenanceInfo(updatedResource: Resource, currentSender: User, resourceInfo: any, detailDifference: any) {
-  //   let lstDataProvenance = await DataProvenance.query(DataProvenance, {
-  //     "selector": {
-  //       type: new DataProvenance().type,
-  //       associated_with_obj_id: updatedResource.id,
-  //       object_type: new Resource().type
-  //     }
-  //   }) as DataProvenance[]
-
-  //   if (lstDataProvenance.length !== 1) {
-  //     throw new Error('Cannot find story related to this resource ' + resourceInfo['id'] + 'from ' + resourceInfo['source'])
-  //   }
-  //   let currentDataProvenance = lstDataProvenance[0]
-  //   let userInfoAssociatied = { ...resourceInfo['user'] }
-  //   // manually remove user info
-  //   delete resourceInfo["user"]
-
-
-  //   let newChapter = await this.onUpdatedChapterComponent(currentSender, userInfoAssociatied, updatedResource, resourceInfo, detailDifference)
-  //   // create provenance info
-  //   let wasGeneratedBy_info = new WasGeneratedBy()
-  //   wasGeneratedBy_info.entity = newChapter.entities[0]
-  //   wasGeneratedBy_info.activity = newChapter.activities[0]
-  //   newChapter.provenanceInfo = [wasGeneratedBy_info]
-
-  //   let isHaveUserAssociated: boolean = newChapter.agents.length > 1
-  //   let wasAttributedTo_info = new WasAttributedTo()
-  //   wasAttributedTo_info.entity = newChapter.entities[0]
-  //   wasAttributedTo_info.agent = isHaveUserAssociated ? newChapter.agents[1] : newChapter.agents[0]
-  //   newChapter.provenanceInfo = newChapter.provenanceInfo.concat(wasAttributedTo_info)
-
-  //   if (isHaveUserAssociated) {
-  //     let wasAssociatedWith_info = new WasAssociatedWith()
-  //     wasAssociatedWith_info.agent = newChapter.agents[0]
-  //     wasAssociatedWith_info.activity = newChapter.activities[0]
-  //     newChapter.provenanceInfo = newChapter.provenanceInfo.concat(wasAssociatedWith_info)
-
-  //     let actedOnBehalfOf_info = new ActedOnBehalfOf()
-  //     actedOnBehalfOf_info.agent1 = newChapter.agents[0];
-  //     actedOnBehalfOf_info.agent2 = newChapter.agents[1]
-  //     newChapter.provenanceInfo = newChapter.provenanceInfo.concat(actedOnBehalfOf_info)
-  //   }
-  //   currentDataProvenance.story = currentDataProvenance.story.concat(newChapter)
-  //   return await currentDataProvenance.save()
-
-  // }
-
 }

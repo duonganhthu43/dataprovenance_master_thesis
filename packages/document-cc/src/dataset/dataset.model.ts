@@ -11,7 +11,7 @@ import { BaseObjWithAtt } from '../common'
 export class Dataset extends BaseObjWithAtt<Dataset> {
   @ReadOnly()
   @Required()
-  public readonly type = 'io.worldsibu.dataset';
+  public readonly type = 'dataset';
 
   @Validate(yup.string())
   public maintainer: string;

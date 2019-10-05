@@ -6,7 +6,7 @@ import { BaseObjWithAtt } from '.';
 import { User } from '../user/user.model'
 import { BaseModel } from './baseModel.model';
 import { basename } from 'path';
-import { DataProvenance, Activity, Entity, Chapter, Agent, ProvenananeGenerator, ActedOnBehalfOf, WasAssociatedWith, WasAttributedTo, WasGeneratedBy } from '../data-provenance';
+import { DataProvenance, Activity, Entity, Chapter, Agent, WasDerivedFrom, ProvenananeGenerator, ActedOnBehalfOf, WasAssociatedWith, WasAttributedTo, WasGeneratedBy } from '../data-provenance';
 import { Utilities } from './utilities';
 
 export abstract class BaseController<T extends BaseModel<T>> extends ConvectorController<ChaincodeTx> {
@@ -20,16 +20,15 @@ export abstract class BaseController<T extends BaseModel<T>> extends ConvectorCo
 
     abstract async onCreate(modelInfo: any, sender: User): Promise<T>
 
-    abstract async onCreateProv(currentSender: User, dataset: T, dataInfo: any)
+    abstract async onCreateProv(currentSender: User, currentEntity: T, dataInfo: any)
 
-    public async createProvenanceInfo(newValue: T, currentSender: User, info: any) {
-        let datasetProvenance = new DataProvenance()
-        datasetProvenance.associated_with_obj_id = newValue.id
-        datasetProvenance.object_type = newValue.type
+
+    public async provenanceInfo_create(newValue: T, currentSender: User, info: any) {
+        
         let userInfoAssociatied = { ...info['user'] }
         // manually remove user info
         delete info["user"]
-        let newChapter = await this.onCreateChapterComponent(currentSender, userInfoAssociatied, newValue, info)
+        let newChapter = await this.chapter_createNew(currentSender, userInfoAssociatied, newValue, info)
         // create provenance info
         let wasGeneratedBy_info = new WasGeneratedBy()
         wasGeneratedBy_info.entity = ProvenananeGenerator.getProvName(newChapter.entities[0])
@@ -54,8 +53,11 @@ export abstract class BaseController<T extends BaseModel<T>> extends ConvectorCo
             newChapter.provenanceInfo = newChapter.provenanceInfo.concat(actedOnBehalfOf_info)
         }
 
+        let datasetProvenance = new DataProvenance()
+        datasetProvenance.associated_with_obj_id = newValue.id
+        datasetProvenance.object_type = newValue.type
         datasetProvenance.story = [newChapter]
-        datasetProvenance.id = this.tx.stub.generateUUID(`datasetprovenance-${datasetProvenance.associated_with_obj_id}-${datasetProvenance.object_type}`)
+        datasetProvenance.id = this.tx.stub.generateUUID(`${currentSender.type}provenance-${datasetProvenance.associated_with_obj_id}-${datasetProvenance.object_type}`)
         return await datasetProvenance.save()
     }
     public createActivityWithName(name: string) {
@@ -71,9 +73,9 @@ export abstract class BaseController<T extends BaseModel<T>> extends ConvectorCo
         return entity
     }
 
-    public async onCreateChapterComponent(currentSender: User, userInfoAssociatied: any, currentValue: T, info: any) {
+    public async chapter_createNew(currentSender: User, userInfoAssociatied: any, currentValue: T, info: any) {
         let chapter = await this.onCreateAgentsAndEntity(currentSender, userInfoAssociatied, currentValue, info)
-        let activitity = this.createActivityWithName('create_new_dataset')
+        let activitity = this.createActivityWithName(`create_new_${currentValue.type}`)
         chapter.activities = [activitity]
         return chapter
     }
@@ -143,5 +145,69 @@ export abstract class BaseController<T extends BaseModel<T>> extends ConvectorCo
         let userType = userTypeAttribute ? userTypeAttribute.value : undefined
         return (!userTypeAttribute.expired) && userType === 'casual_user'
     }
+    public async onUpdatedChapterComponent(currentSender: User, userInfoAssociatied: any, currentDataset: T, datasetInfo: any, detailDifference: any) {
+        let chapter = await this.onCreateAgentsAndEntity(currentSender, userInfoAssociatied, currentDataset, datasetInfo)
+        let activitity = this.createActivityWithName(`update_${currentDataset.type}`)
+        activitity.info = detailDifference
+        chapter.activities = [activitity]
+        return chapter
+    }
 
+    public async updateProvenanceInfo(updatedEntity: T, currentSender: User, entityInfo: any, detailDifference: any, oldValue: any) {
+        let lstDataProvenance = await DataProvenance.query(DataProvenance, {
+            "selector": {
+                type: new DataProvenance().type,
+                associated_with_obj_id: updatedEntity.id,
+                object_type: updatedEntity.type
+            }
+        }) as DataProvenance[]
+
+        if (lstDataProvenance.length !== 1) {
+            throw new Error(`Cannot find story related to this ${updatedEntity.type} ` + updatedEntity['id'] + 'from ' + updatedEntity['source'])
+        }
+        let currentDataProvenance = lstDataProvenance[0]
+        let userInfoAssociatied = { ...entityInfo['user'] }
+        // manually remove user info
+        delete entityInfo["user"]
+
+        if (Object.keys(userInfoAssociatied).length < 1 && updatedEntity['creator_user_id']) {
+            userInfoAssociatied = {
+                id: updatedEntity['creator_user_id']
+            }
+        }
+
+        let newChapter = await this.onUpdatedChapterComponent(currentSender, userInfoAssociatied, updatedEntity, entityInfo, detailDifference)
+        // create provenance info
+        let wasGeneratedBy_info = new WasGeneratedBy()
+        wasGeneratedBy_info.entity = ProvenananeGenerator.getProvName(newChapter.entities[0])
+        wasGeneratedBy_info.activity = ProvenananeGenerator.getProvName(newChapter.activities[0])
+        newChapter.provenanceInfo = [wasGeneratedBy_info]
+
+        let isHaveUserAssociated: boolean = newChapter.agents.length > 1
+        let wasAttributedTo_info = new WasAttributedTo()
+        wasAttributedTo_info.entity = ProvenananeGenerator.getProvName(newChapter.entities[0])
+        wasAttributedTo_info.agent = isHaveUserAssociated ? ProvenananeGenerator.getProvName(newChapter.agents[1]) : ProvenananeGenerator.getProvName(newChapter.agents[0])
+        newChapter.provenanceInfo = newChapter.provenanceInfo.concat(wasAttributedTo_info)
+
+        if (isHaveUserAssociated) {
+            let wasAssociatedWith_info = new WasAssociatedWith()
+            wasAssociatedWith_info.agent = ProvenananeGenerator.getProvName(newChapter.agents[0])
+            wasAssociatedWith_info.activity = ProvenananeGenerator.getProvName(newChapter.activities[0])
+            newChapter.provenanceInfo = newChapter.provenanceInfo.concat(wasAssociatedWith_info)
+
+            let actedOnBehalfOf_info = new ActedOnBehalfOf()
+            actedOnBehalfOf_info.delegate = ProvenananeGenerator.getProvName(newChapter.agents[0])
+            actedOnBehalfOf_info.responsible = ProvenananeGenerator.getProvName(newChapter.agents[1])
+            newChapter.provenanceInfo = newChapter.provenanceInfo.concat(actedOnBehalfOf_info)
+        }
+        // create revision of
+        let wasDerivedFrom = new WasDerivedFrom()
+        wasDerivedFrom.generatedEntity = ProvenananeGenerator.getProvName(newChapter.entities[0])
+        // find latest entity have same id
+        wasDerivedFrom.usedEntity = ProvenananeGenerator.generateDatasetHashName(oldValue)
+
+        newChapter.provenanceInfo = newChapter.provenanceInfo.concat(wasDerivedFrom)
+        currentDataProvenance.story = currentDataProvenance.story.concat(newChapter)
+        return await currentDataProvenance.save()
+    }
 }

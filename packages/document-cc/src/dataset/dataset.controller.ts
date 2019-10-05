@@ -13,7 +13,9 @@ import { Utilities } from '../common/utilities';
 
 @Controller('dataset')
 export class DatasetController extends BaseController<Dataset> {
-  
+  public async onCreateProv(currentSender: User, dataset: Dataset, dataInfo: any) {
+    return await this.provenanceInfo_create(dataset,currentSender,dataInfo)
+  }
   async onCreate(modelInfo: any, sender: User): Promise<Dataset> {
     let listDataset = await Dataset.query(Dataset, {
       "selector": {
@@ -181,9 +183,7 @@ export class DatasetController extends BaseController<Dataset> {
     return newDataset
   }
 
-  public async onCreateProv(currentSender: User, dataset: Dataset, dataInfo: any) {
-    return await this.createProvenanceInfo(dataset,currentSender,dataInfo)
-  }
+
 
 
 
@@ -211,20 +211,20 @@ export class DatasetController extends BaseController<Dataset> {
   //   return chapter
   // }
 
-  public async onCreateChapterComponent(currentSender: User, userInfoAssociatied: any, currentDataset: Dataset, datasetInfo: any) {
-    let chapter = await this.onCreateAgentsAndEntity(currentSender, userInfoAssociatied, currentDataset, datasetInfo)
-    let activitity = this.createActivityWithName('create_new_dataset')
-    chapter.activities = [activitity]
-    return chapter
-  }
+  // public async onCreateChapterComponent(currentSender: User, userInfoAssociatied: any, currentDataset: Dataset, datasetInfo: any) {
+  //   let chapter = await this.onCreateAgentsAndEntity(currentSender, userInfoAssociatied, currentDataset, datasetInfo)
+  //   let activitity = this.createActivityWithName('create_new_dataset')
+  //   chapter.activities = [activitity]
+  //   return chapter
+  // }
 
-  public async onUpdatedChapterComponent(currentSender: User, userInfoAssociatied: any, currentDataset: Dataset, datasetInfo: any, detailDifference: any) {
-    let chapter = await this.onCreateAgentsAndEntity(currentSender, userInfoAssociatied, currentDataset, datasetInfo)
-    let activitity = this.createActivityWithName('update_dataset')
-    activitity.info = detailDifference
-    chapter.activities = [activitity]
-    return chapter
-  }
+  // public async onUpdatedChapterComponent(currentSender: User, userInfoAssociatied: any, currentDataset: Dataset, datasetInfo: any, detailDifference: any) {
+  //   let chapter = await this.onCreateAgentsAndEntity(currentSender, userInfoAssociatied, currentDataset, datasetInfo)
+  //   let activitity = this.createActivityWithName('update_dataset')
+  //   activitity.info = detailDifference
+  //   chapter.activities = [activitity]
+  //   return chapter
+  // }
 
   // public async createProvenanceInfo(newDataset: Dataset, currentSender: User, datasetInfo: any) {
   //   // create provenance for dataset
@@ -266,62 +266,62 @@ export class DatasetController extends BaseController<Dataset> {
   // }
 
 
-  public async updateProvenanceInfo(updatedDataset: Dataset, currentSender: User, datasetInfo: any, detailDifference: any, oldValue: any) {
-    let lstDataProvenance = await DataProvenance.query(DataProvenance, {
-      "selector": {
-        type: new DataProvenance().type,
-        associated_with_obj_id: updatedDataset.id,
-        object_type: new Dataset().type
-      }
-    }) as DataProvenance[]
+  // public async updateProvenanceInfo(updatedDataset: Dataset, currentSender: User, datasetInfo: any, detailDifference: any, oldValue: any) {
+  //   let lstDataProvenance = await DataProvenance.query(DataProvenance, {
+  //     "selector": {
+  //       type: new DataProvenance().type,
+  //       associated_with_obj_id: updatedDataset.id,
+  //       object_type: new Dataset().type
+  //     }
+  //   }) as DataProvenance[]
 
-    if (lstDataProvenance.length !== 1) {
-      throw new Error('Cannot find story related to this dataset ' + datasetInfo['id'] + 'from ' + datasetInfo['source'])
-    }
-    let currentDataProvenance = lstDataProvenance[0]
-    let userInfoAssociatied = { ...datasetInfo['user'] }
-    // manually remove user info
-    delete datasetInfo["user"]
+  //   if (lstDataProvenance.length !== 1) {
+  //     throw new Error('Cannot find story related to this dataset ' + datasetInfo['id'] + 'from ' + datasetInfo['source'])
+  //   }
+  //   let currentDataProvenance = lstDataProvenance[0]
+  //   let userInfoAssociatied = { ...datasetInfo['user'] }
+  //   // manually remove user info
+  //   delete datasetInfo["user"]
 
-    if(Object.keys(userInfoAssociatied).length < 1 && updatedDataset.creator_user_id) {
-      userInfoAssociatied= {
-        id: updatedDataset.creator_user_id
-      } 
-    }
+  //   if(Object.keys(userInfoAssociatied).length < 1 && updatedDataset.creator_user_id) {
+  //     userInfoAssociatied= {
+  //       id: updatedDataset.creator_user_id
+  //     } 
+  //   }
 
-    let newChapter = await this.onUpdatedChapterComponent(currentSender, userInfoAssociatied, updatedDataset, datasetInfo, detailDifference)
-    // create provenance info
-    let wasGeneratedBy_info = new WasGeneratedBy()
-    wasGeneratedBy_info.entity =  ProvenananeGenerator.getProvName(newChapter.entities[0])
-    wasGeneratedBy_info.activity = ProvenananeGenerator.getProvName( newChapter.activities[0])
-    newChapter.provenanceInfo = [wasGeneratedBy_info]
+  //   let newChapter = await this.onUpdatedChapterComponent(currentSender, userInfoAssociatied, updatedDataset, datasetInfo, detailDifference)
+  //   // create provenance info
+  //   let wasGeneratedBy_info = new WasGeneratedBy()
+  //   wasGeneratedBy_info.entity =  ProvenananeGenerator.getProvName(newChapter.entities[0])
+  //   wasGeneratedBy_info.activity = ProvenananeGenerator.getProvName( newChapter.activities[0])
+  //   newChapter.provenanceInfo = [wasGeneratedBy_info]
 
-    let isHaveUserAssociated: boolean = newChapter.agents.length > 1
-    let wasAttributedTo_info = new WasAttributedTo()
-    wasAttributedTo_info.entity = ProvenananeGenerator.getProvName( newChapter.entities[0])
-    wasAttributedTo_info.agent = isHaveUserAssociated ? ProvenananeGenerator.getProvName( newChapter.agents[1]) :  ProvenananeGenerator.getProvName(newChapter.agents[0])
-    newChapter.provenanceInfo = newChapter.provenanceInfo.concat(wasAttributedTo_info)
+  //   let isHaveUserAssociated: boolean = newChapter.agents.length > 1
+  //   let wasAttributedTo_info = new WasAttributedTo()
+  //   wasAttributedTo_info.entity = ProvenananeGenerator.getProvName( newChapter.entities[0])
+  //   wasAttributedTo_info.agent = isHaveUserAssociated ? ProvenananeGenerator.getProvName( newChapter.agents[1]) :  ProvenananeGenerator.getProvName(newChapter.agents[0])
+  //   newChapter.provenanceInfo = newChapter.provenanceInfo.concat(wasAttributedTo_info)
 
-    if (isHaveUserAssociated) {
-      let wasAssociatedWith_info = new WasAssociatedWith()
-      wasAssociatedWith_info.agent =  ProvenananeGenerator.getProvName( newChapter.agents[0])
-      wasAssociatedWith_info.activity = ProvenananeGenerator.getProvName( newChapter.activities[0])
-      newChapter.provenanceInfo = newChapter.provenanceInfo.concat(wasAssociatedWith_info)
+  //   if (isHaveUserAssociated) {
+  //     let wasAssociatedWith_info = new WasAssociatedWith()
+  //     wasAssociatedWith_info.agent =  ProvenananeGenerator.getProvName( newChapter.agents[0])
+  //     wasAssociatedWith_info.activity = ProvenananeGenerator.getProvName( newChapter.activities[0])
+  //     newChapter.provenanceInfo = newChapter.provenanceInfo.concat(wasAssociatedWith_info)
 
-      let actedOnBehalfOf_info = new ActedOnBehalfOf()
-      actedOnBehalfOf_info.delegate =  ProvenananeGenerator.getProvName(newChapter.agents[0])
-      actedOnBehalfOf_info.responsible = ProvenananeGenerator.getProvName(newChapter.agents[1])
-      newChapter.provenanceInfo = newChapter.provenanceInfo.concat(actedOnBehalfOf_info)
-    }
-    // create revision of
-    let wasDerivedFrom = new WasDerivedFrom()
-    wasDerivedFrom.generatedEntity =ProvenananeGenerator.getProvName(newChapter.entities[0])
-    // find latest entity have same id
-    wasDerivedFrom.usedEntity = ProvenananeGenerator.generateDatasetHashName(oldValue)
+  //     let actedOnBehalfOf_info = new ActedOnBehalfOf()
+  //     actedOnBehalfOf_info.delegate =  ProvenananeGenerator.getProvName(newChapter.agents[0])
+  //     actedOnBehalfOf_info.responsible = ProvenananeGenerator.getProvName(newChapter.agents[1])
+  //     newChapter.provenanceInfo = newChapter.provenanceInfo.concat(actedOnBehalfOf_info)
+  //   }
+  //   // create revision of
+  //   let wasDerivedFrom = new WasDerivedFrom()
+  //   wasDerivedFrom.generatedEntity =ProvenananeGenerator.getProvName(newChapter.entities[0])
+  //   // find latest entity have same id
+  //   wasDerivedFrom.usedEntity = ProvenananeGenerator.generateDatasetHashName(oldValue)
     
-    newChapter.provenanceInfo = newChapter.provenanceInfo.concat(wasDerivedFrom)
-    currentDataProvenance.story = currentDataProvenance.story.concat(newChapter)
-    return await currentDataProvenance.save()
-  }
+  //   newChapter.provenanceInfo = newChapter.provenanceInfo.concat(wasDerivedFrom)
+  //   currentDataProvenance.story = currentDataProvenance.story.concat(newChapter)
+  //   return await currentDataProvenance.save()
+  // }
 
 }
