@@ -4,3 +4,4 @@ export * from './x509Identities.model';
 export * from './objectWithAtt.model'
 export * from './objectWithAttAndIdentities.model'
 export * from './baseController'
+export * from './baseProvController'

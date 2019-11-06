@@ -54,10 +54,16 @@ export class PortalController extends BaseController<Portal> {
   }
 
   @Invokable()
+  public async test111() {
+    console.log
+    return "777"
+  }
+  @Invokable()
   public async create(
     @Param(yup.object())
     portal: PortalCreateDTO
   ) {
+    console.log('===== create portal ', this.sender)
     let newPortal = new Portal();
     newPortal.createAuditField(this.sender)
     newPortal.id = this.portalID
@@ -85,6 +91,6 @@ export class PortalController extends BaseController<Portal> {
     let userTypeAtt = new Attribute('user_type', 'portal_user',this.sender)
     portalUser.attributes = [userTypeAtt]
     await portalUser.save();
-    return <Portal>newPortal.toJSON();
+    return <Portal>newPortal.toJSON(true);
   }
 }

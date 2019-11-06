@@ -27,7 +27,8 @@ export abstract class BaseComponent<T extends BaseComponent<any>> extends Convec
   private _info: any;
 
   get hashInfo(): string {
-    return this.info && hash.MD5(this._info)
+    let hashObject = Object.assign({}, this._info)
+    return this.info && hash(hashObject, { algorithm: 'md5', encoding: 'base64', respectType: 'false' })
   }
   get info(): any {
     return this._info;
@@ -163,6 +164,22 @@ export class WasAttributedTo extends ProvenanceInfo {
   @Required()
   @Validate(yup.string())
   public agent: string
+}
+
+export class HadMember extends ProvenanceInfo {
+  @Required()
+  @ReadOnly()
+  public shortName = 'hM';
+  @ReadOnly()
+  @Required()
+  public readonly type = 'hadMember';
+  @Required()
+  @Validate(yup.string())
+  public collection: string
+
+  @Required()
+  @Validate(yup.string())
+  public entity: string
 }
 
 export class ActedOnBehalfOf extends ProvenanceInfo {

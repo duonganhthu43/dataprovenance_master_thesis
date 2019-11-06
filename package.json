@@ -19,7 +19,7 @@
     "lerna:install": "lerna bootstrap",
     "lerna:build": "lerna run build",
     "cc:package": "f() { npm run lerna:build; chaincode-manager --update --config ./$1.config.json --output ./chaincode-$1 package; }; f",
-    "cc:install": "f() { hurl install ${2:-$1} node -P ./chaincode-$1; }; f",
+    "cc:install": "f() { echo ${2:-$1}; hurl install ${2:-$1} node -P ./chaincode-$1; }; f",
     "cc:install:debug": "f() { hurl install ${2:-$1} node -P ./chaincode-$1 --debug; }; f",
     "lerna:test": "lerna run test --stream",
     "lerna:test:e2e": "lerna run test:e2e --stream"

@@ -50,6 +50,12 @@ export class Dataset extends BaseObjWithAtt<Dataset> {
 
   @Validate(yup.array(yup.object()))
   public tags: object[];
+
+  @Validate(yup.array(yup.object()))
+  public extras: object[];
+
+  @Validate(yup.string())
+  public allowed_users: object[];
   
   @Validate(yup.string())
   public tag_string: string;

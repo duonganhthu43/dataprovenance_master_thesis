@@ -7,17 +7,39 @@ import {
 } from '@worldsibu/convector-core';
 import { Resource } from './resource.model';
 import * as yup from 'yup';
-import { BaseController } from '../common';
+import { BaseProvController } from '../common';
 import { User } from '../user/user.model';
-import { DataProvenance, Agent, Entity, Activity, WasGeneratedBy, WasAttributedTo, WasAssociatedWith, ActedOnBehalfOf, Chapter } from '../data-provenance';
+import { DataProvenance, Agent, Entity, Activity, WasGeneratedBy, WasAttributedTo, WasAssociatedWith, ActedOnBehalfOf, Chapter, ProvenananeGenerator } from '../data-provenance';
 import { Utilities } from '../common/utilities';
+import { History } from '@worldsibu/convector-core';
 
 @Controller('resource')
-export class ResourceController extends BaseController<Resource> {
-  async onCreateProv(currentSender: User, dataset: Resource, dataInfo: any) {
-    return await this.createProvenanceInfo(dataset,currentSender,dataInfo)
+export class ResourceController extends BaseProvController<Resource> {
+  async onDelete_validate(modelInfo: any, sender: User): Promise<Resource> {
+    return await Resource.getOne(modelInfo.id)
   }
-  
+
+  async onUpdate_Validate(modelInfo: any): Promise<Resource> {
+    let lstResource = await Resource.query(Resource, {
+      "selector": {
+        type: new Resource().type,
+        "id": modelInfo['id'],
+        'source': modelInfo['source']
+      }
+    }) as Resource[]
+    if (lstResource.length !== 1) {
+      throw new Error('Theres no resource related to id' + modelInfo['id'] + 'from ' + modelInfo['source'])
+    }
+    return lstResource[0]
+  }
+
+  async onUpdate(oldModel: Resource, newInfo: any, sender: User): Promise<Resource> { return this.mappingValue(newInfo, oldModel) }
+  async onFindDiff(oldValue: any, newValue: any): Promise<any[]> { return Utilities.findDiff(oldValue, newValue, {}) }
+
+  async onCreateProv(currentSender: User, dataset: Resource, dataInfo: any) {
+    return await this.provenanceInfo_create(dataset, currentSender, dataInfo)
+  }
+
   async onCreate(modelInfo: any, sender: User): Promise<Resource> {
     let lstResource = await Resource.query(Resource, {
       "selector": {
@@ -38,39 +60,59 @@ export class ResourceController extends BaseController<Resource> {
 
   }
 
-  @Invokable()
-  public async create(
-    @Param(yup.object())
-    resourceInfo: any
-  ) {
-    return await super.create(resourceInfo)
+  async associatedAgent_create(newValue: Resource, info: any): Promise<Agent[]> {
+    let userInfoAssociatied = { ...info['user'] }
+    if (!userInfoAssociatied || Object.keys(userInfoAssociatied).length < 1) { return [] }
+    let associatedAgent = new Agent()
+    associatedAgent.info = userInfoAssociatied
+    associatedAgent.name = userInfoAssociatied['name']
+    let userByID = await Utilities.findUserById(userInfoAssociatied['id'])
+    if (userByID) {
+      associatedAgent.id = userByID.id
+      associatedAgent.associated_type = userByID.type
+      associatedAgent.name = userByID.name
+      associatedAgent.info = userByID.toJSON(true)
+    } else {
+      associatedAgent.id = userInfoAssociatied['id']
+    }
+    return [associatedAgent]
   }
+
   @Invokable()
-  public async update(
+  public async create(@Param(yup.object()) resourceInfo: any) { return await super.create(resourceInfo) }
+
+
+
+  @Invokable()
+  public async create_multiple(@Param(yup.object()) resourceArray: any) {
+     return await super.createMultiple(resourceArray.resources)
+  }
+
+  @Invokable()
+  public async batch_update(@Param(yup.object()) datasetInfo: any) { return await super.batchUpdate(datasetInfo) }
+
+  @Invokable()
+  public async update(@Param(yup.object()) resourceInfo: any) { return await super.baseUpdate(resourceInfo) }
+  
+  @Invokable()
+  public async getprovenance(
     @Param(yup.object())
     resourceInfo: any
   ) {
     let currentSender = await this.validateCurrentSender()
-    let lstResource = await Resource.query(Resource, {
+    let lstDataProvenance = await DataProvenance.query(DataProvenance, {
       "selector": {
-        type: new Resource().type,
-        "id": resourceInfo['id'],
-        'source': resourceInfo['source']
+        type: new DataProvenance().type,
+        associated_with_obj_id: resourceInfo['resourceId'],
+        object_type: new Resource().type
       }
-    }) as Resource[]
-    if (lstResource.length !== 1) {
-      throw new Error('Theres no resource related to id' + resourceInfo['id'] + 'from ' + resourceInfo['source'])
-    }
-    let resource = lstResource[0]
-    let oldValue = { ...resource.toJSON() }
-    resource = this.mappingValue(resourceInfo, resource)
-    let newValue = { ...resource.toJSON() }
-    let diff = Utilities.findDiff(oldValue, newValue, {})
-    if (!diff || diff.length < 1) { return <Resource>resource.toJSON() }
-    await this.updateProvenanceInfo(resource, currentSender, newValue, diff, oldValue)
+    }) as DataProvenance[]
 
-    await resource.save();
-    return <Resource>resource.toJSON()
+    if (lstDataProvenance.length !== 1) {
+      throw new Error('Cannot find provenance related to this dataset ' + resourceInfo['resourceId'] + 'from ' + resourceInfo['source'])
+    }
+    let currentDataProvenance = lstDataProvenance[0]
+    return ProvenananeGenerator.generateProvStoryJS(currentDataProvenance.story)
   }
 
   @Invokable()
@@ -99,7 +141,7 @@ export class ResourceController extends BaseController<Resource> {
       }
     }
     let lstResource = await Resource.query(Resource, querryCriteria) as Resource[]
-    return <Resource[]>lstResource.map(value => value.toJSON())
+    return <Resource[]>lstResource.map(value => value.toJSON(true))
   }
   private mappingValue(source: any, destination: Resource) {
     let newDestination = destination.clone()
@@ -114,5 +156,52 @@ export class ResourceController extends BaseController<Resource> {
     })
 
     return newDestination
+  }
+
+  @Invokable()
+  public async gethistory(
+    @Param(yup.object())
+    resourceInfo: any
+  ): Promise<History<Resource>[]> {
+    try {
+      let currentSender = await this.validateCurrentSender()
+      let listResource = await Resource.query(Resource, {
+        "selector": {
+          type: new Resource().type,
+          id: resourceInfo['resourceInfo']
+        }
+      }) as Resource[]
+      if (listResource && listResource.length > 0) {
+        let firstResult = listResource[0]
+        return await firstResult.history()
+      }
+      return []
+    } catch (err) {
+      console.log('==== resource History error ')
+    }
+  }
+
+  @Invokable()
+  public async getbyid(
+    @Param(yup.object())
+    resourceInfo: any
+  ) {
+    try {
+      let currentSender = await this.validateCurrentSender()
+      let lstResource = await Resource.query(Resource, {
+        "selector": {
+          type: new Resource().type,
+          id: resourceInfo['resource_id']
+        }
+      }) as Resource[]
+      if (lstResource && lstResource.length > 0) {
+        let firstResource = lstResource[0]
+        return <Resource>firstResource.toJSON(true)
+      }
+      return []
+    }
+    catch (err) {
+      console.log('=== error in getbyid', err)
+    }
   }
 }
